@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import axios from "axios"
 import { LoadingCard } from "@/components/ui/loading-spinner"
 import { AnimatePresence, motion } from "framer-motion"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 interface CameraData {
   name: string
@@ -22,32 +24,31 @@ interface ComparisonData {
 export default function CameraComparison({ timeRange }: { timeRange: string }) {
   const [data, setData] = useState<CameraData[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [metric, setMetric] = useState<string>("count")
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
+      setError(null)
+      
       try {
         // Try to fetch from API
         try {
           const response = await axios.get(`/api/analytics/compare?timeRange=${timeRange}`)
-          if (response.data && response.data.cameras && Array.isArray(response.data.cameras)) {
+          if (response.data && 
+              response.data.cameras && 
+              Array.isArray(response.data.cameras) &&
+              response.data.cameras.length > 0) {
             setData(response.data.cameras)
             return
+          } else {
+            setError("Invalid data format received from API")
           }
         } catch (error) {
           console.error("API error:", error)
+          setError("Failed to load camera comparison data. Please try again later.")
         }
-
-        // Fallback to mock data
-        const mockData: CameraData[] = [
-          { name: "Front Door", id: "cam-001", count: 425, ltr: 245, rtl: 180 },
-          { name: "Backyard", id: "cam-002", count: 132, ltr: 85, rtl: 47 },
-          { name: "Garage", id: "cam-003", count: 318, ltr: 190, rtl: 128 },
-          { name: "Side Entrance", id: "cam-004", count: 215, ltr: 120, rtl: 95 },
-          { name: "Driveway", id: "cam-005", count: 158, ltr: 102, rtl: 56 },
-        ]
-        setData(mockData)
       } finally {
         setLoading(false)
       }
@@ -60,10 +61,37 @@ export default function CameraComparison({ timeRange }: { timeRange: string }) {
     return <LoadingCard height="h-[400px]" />
   }
 
+  if (error) {
+    return (
+      <Alert variant="destructive" className="h-[400px] flex flex-col justify-center">
+        <AlertCircle className="h-5 w-5" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (!data.length) {
+    return (
+      <Alert className="h-[400px] flex flex-col justify-center">
+        <AlertTitle>No Data</AlertTitle>
+        <AlertDescription>No camera comparison data available for the selected time range.</AlertDescription>
+      </Alert>
+    )
+  }
+
+  // Ensure all required data fields exist and have valid values
+  const validatedData = data.map(camera => ({
+    name: camera.name || 'Unknown',
+    count: typeof camera.count === 'number' ? camera.count : 0,
+    ltr: typeof camera.ltr === 'number' ? camera.ltr : 0,
+    rtl: typeof camera.rtl === 'number' ? camera.rtl : 0
+  }));
+
   const chartData =
-    metric === "count"
-      ? data.map((camera) => ({ name: camera.name, count: camera.count }))
-      : data.map((camera) => ({ name: camera.name, ltr: camera.ltr, rtl: camera.rtl }))
+    metric === "direction"
+      ? validatedData.map((camera) => ({ name: camera.name, ltr: camera.ltr, rtl: camera.rtl }))
+      : validatedData.map((camera) => ({ name: camera.name, count: camera.count }));
 
   return (
     <AnimatePresence mode="wait">

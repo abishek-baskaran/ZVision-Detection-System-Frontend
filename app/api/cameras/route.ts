@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { cameraService } from "@/lib/services"
 
 // Mock data - in a real app, this would be stored in a database
 export const cameras = [
@@ -54,38 +55,37 @@ export const cameras = [
 ]
 
 export async function GET() {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-
-  // Make sure we're explicitly returning an array
-  return NextResponse.json(cameras)
+  try {
+    // Use our service module to get all cameras
+    const cameras = await cameraService.getCameras()
+    return NextResponse.json(cameras)
+  } catch (error) {
+    console.error("Error fetching cameras:", error)
+    return NextResponse.json(
+      { error: "Failed to fetch cameras" },
+      { status: 500 }
+    )
+  }
 }
 
 export async function POST(request: Request) {
-  const body = await request.json()
+  try {
+    const body = await request.json()
 
-  // Validate required fields
-  if (!body.id || !body.name || !body.source) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    // Validate required fields
+    if (!body.id || !body.name || !body.source) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    // Create new camera with our service
+    const newCamera = await cameraService.updateCamera(body.id, body)
+    return NextResponse.json(newCamera, { status: 201 })
+  } catch (error) {
+    console.error("Error creating camera:", error)
+    return NextResponse.json(
+      { error: "Failed to create camera" },
+      { status: 500 }
+    )
   }
-
-  // Check if camera with this ID already exists
-  if (cameras.some((camera) => camera.id === body.id)) {
-    return NextResponse.json({ error: "Camera with this ID already exists" }, { status: 409 })
-  }
-
-  // Create new camera
-  const newCamera = {
-    id: body.id,
-    name: body.name,
-    source: body.source,
-    active: true,
-    detection_enabled: false,
-  }
-
-  // Add to our "database"
-  cameras.push(newCamera)
-
-  return NextResponse.json(newCamera, { status: 201 })
 }
 

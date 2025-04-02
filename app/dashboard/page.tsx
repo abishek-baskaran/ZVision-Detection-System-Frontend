@@ -10,32 +10,37 @@ import DailyMetrics from "@/components/dashboard/daily-metrics"
 import SummaryMetrics from "@/components/dashboard/summary-metrics"
 import CameraComparison from "@/components/dashboard/camera-comparison"
 import TimeRangeSelector from "@/components/dashboard/time-range-selector"
+import CameraSelector from "@/components/dashboard/camera-selector"
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<string>("7d")
+  const [selectedCamera, setSelectedCamera] = useState<string | null>(null)
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <h1 className="text-3xl font-bold mb-4 md:mb-0">Analytics Dashboard</h1>
-        <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+        <div className="flex flex-col sm:flex-row gap-4">
+          <CameraSelector value={selectedCamera} onChange={setSelectedCamera} />
+          <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <FootfallMetrics timeRange={timeRange} />
-        <DirectionMetrics timeRange={timeRange} />
-        <SummaryMetrics timeRange={timeRange} />
+        <FootfallMetrics timeRange={timeRange} cameraId={selectedCamera} />
+        <DirectionMetrics timeRange={timeRange} cameraId={selectedCamera} />
+        <SummaryMetrics timeRange={timeRange} cameraId={selectedCamera} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <Card className="glass p-6 rounded-xl">
           <h2 className="text-xl font-semibold mb-4">Hourly Traffic</h2>
-          <HourlyMetrics timeRange={timeRange} />
+          <HourlyMetrics timeRange={timeRange} cameraId={selectedCamera} />
         </Card>
 
         <Card className="glass p-6 rounded-xl">
           <h2 className="text-xl font-semibold mb-4">Daily Traffic</h2>
-          <DailyMetrics timeRange={timeRange} />
+          <DailyMetrics timeRange={timeRange} cameraId={selectedCamera} />
         </Card>
       </div>
 

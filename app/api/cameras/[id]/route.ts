@@ -1,93 +1,57 @@
 import { NextResponse } from "next/server"
-import { cameras } from "../route"
+import { cameraService } from "@/lib/services"
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const id = params.id
+  try {
+    const id = params.id
 
-  // Find the camera
-  const camera = cameras.find((camera) => camera.id === id)
-
-  if (!camera) {
+    // Use our service module to get camera by ID
+    const camera = await cameraService.getCamera(id)
+    return NextResponse.json(camera)
+  } catch (error) {
+    console.error(`Error fetching camera ${params.id}:`, error)
     return NextResponse.json({ error: "Camera not found" }, { status: 404 })
   }
-
-  return NextResponse.json(camera)
 }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  const id = params.id
-
-  // Find the camera
-  const cameraIndex = cameras.findIndex((camera) => camera.id === id)
-
-  if (cameraIndex === -1) {
-    return NextResponse.json({ error: "Camera not found" }, { status: 404 })
+  try {
+    // Note: We don't have a delete method in our service yet.
+    // This would need to be implemented in the camera service
+    return NextResponse.json({ error: "Not implemented" }, { status: 501 })
+  } catch (error) {
+    console.error(`Error deleting camera ${params.id}:`, error)
+    return NextResponse.json({ error: "Failed to delete camera" }, { status: 500 })
   }
-
-  // Remove the camera
-  cameras.splice(cameraIndex, 1)
-
-  // Return success with no content
-  return new NextResponse(null, { status: 204 })
 }
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
-  const id = params.id
-  const body = await request.json()
+  try {
+    const id = params.id
+    const body = await request.json()
 
-  // Find the camera
-  const cameraIndex = cameras.findIndex((camera) => camera.id === id)
-
-  if (cameraIndex === -1) {
-    return NextResponse.json({ error: "Camera not found" }, { status: 404 })
+    // Use our service module to update camera
+    const updatedCamera = await cameraService.updateCamera(id, body)
+    return NextResponse.json(updatedCamera)
+  } catch (error) {
+    console.error(`Error updating camera ${params.id}:`, error)
+    return NextResponse.json({ error: "Failed to update camera" }, { status: 500 })
   }
-
-  // Simulate a delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-
-  // Update the camera with the new settings
-  cameras[cameraIndex] = {
-    ...cameras[cameraIndex],
-    ...body,
-  }
-
-  return NextResponse.json(cameras[cameraIndex])
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  // Backend doesn't support PATCH, so we convert to PUT
-  // Note: This maintains partial update behavior because we're first
-  // spreading the existing camera object before applying the updates
-
-  const id = params.id
-  const body = await request.json()
-
-  // Find the camera
-  const cameraIndex = cameras.findIndex((camera) => camera.id === id)
-
-  if (cameraIndex === -1) {
-    return NextResponse.json({ error: "Camera not found" }, { status: 404 })
+  try {
+    // Backend doesn't support PATCH as per api_discrepencies.md
+    // so we convert to PUT (same as before)
+    const id = params.id
+    const body = await request.json()
+    
+    // Use our service module to update camera
+    const updatedCamera = await cameraService.updateCamera(id, body)
+    return NextResponse.json(updatedCamera)
+  } catch (error) {
+    console.error(`Error patching camera ${params.id}:`, error)
+    return NextResponse.json({ error: "Failed to update camera" }, { status: 500 })
   }
-
-  // In a real implementation, we would call the backend PUT endpoint
-  // const response = await fetch(`${process.env.BACKEND_URL}/api/cameras/${id}`, {
-  //   method: 'PUT',
-  //   headers: {
-  //     'Content-Type': 'application/json'
-  //   },
-  //   body: JSON.stringify({
-  //     ...cameras[cameraIndex], // Include existing properties
-  //     ...body // Apply partial updates
-  //   })
-  // })
-  // return response
-  
-  // For this mock implementation, update the camera (same behavior as PUT)
-  cameras[cameraIndex] = {
-    ...cameras[cameraIndex],
-    ...body,
-  }
-
-  return NextResponse.json(cameras[cameraIndex])
 }
 

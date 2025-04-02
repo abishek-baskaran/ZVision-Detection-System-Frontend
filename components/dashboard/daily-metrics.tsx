@@ -5,52 +5,64 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import axios from "axios"
 import { LoadingCard } from "@/components/ui/loading-spinner"
 import { AnimatePresence, motion } from "framer-motion"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 interface DailyData {
   date: string
   count: number
 }
 
-export default function DailyMetrics({ timeRange }: { timeRange: string }) {
+export default function DailyMetrics({ timeRange, cameraId }: { timeRange: string, cameraId: string | null }) {
   const [data, setData] = useState<DailyData[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
+      setError(null)
+      
       try {
-        // Try to fetch from API
-        try {
-          const response = await axios.get(`/api/metrics/daily?timeRange=${timeRange}`)
-          if (response.data && Array.isArray(response.data)) {
-            setData(response.data)
-            return
-          }
-        } catch (error) {
-          console.error("API error:", error)
+        const cameraParam = cameraId ? `&cam_id=${cameraId}` : ''
+        const response = await axios.get(`/api/metrics/daily?timeRange=${timeRange}${cameraParam}`)
+        if (response.data && Array.isArray(response.data)) {
+          setData(response.data)
+        } else {
+          setError("Invalid data format received from API")
         }
-
-        // Fallback to mock data
-        const mockData: DailyData[] = [
-          { date: "2023-04-01", count: 145 },
-          { date: "2023-04-02", count: 132 },
-          { date: "2023-04-03", count: 164 },
-          { date: "2023-04-04", count: 187 },
-          { date: "2023-04-05", count: 212 },
-          { date: "2023-04-06", count: 198 },
-          { date: "2023-04-07", count: 210 },
-        ]
-        setData(mockData)
+      } catch (error) {
+        console.error("API error:", error)
+        setError("Failed to load daily metrics data. Please try again later.")
       } finally {
         setLoading(false)
       }
     }
 
     fetchData()
-  }, [timeRange])
+  }, [timeRange, cameraId])
 
   if (loading) {
     return <LoadingCard height="h-[300px]" />
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="h-[300px] flex flex-col justify-center">
+        <AlertCircle className="h-5 w-5" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (!data.length) {
+    return (
+      <Alert className="h-[300px] flex flex-col justify-center">
+        <AlertTitle>No Data</AlertTitle>
+        <AlertDescription>No daily metrics data available for the selected time range.</AlertDescription>
+      </Alert>
+    )
   }
 
   return (

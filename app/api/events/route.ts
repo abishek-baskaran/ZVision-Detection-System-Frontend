@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { eventService } from "@/lib/services"
 
 // Mock data - in a real app, this would be stored in a database
 const events = [
@@ -61,43 +62,30 @@ const events = [
 ]
 
 export async function GET(request: Request) {
-  // Get query parameters
-  const { searchParams } = new URL(request.url)
-  const fromDate = searchParams.get("from")
-  const toDate = searchParams.get("to")
-  const types = searchParams.getAll("types")
-  
-  // Extract limit parameter directly or calculate a reasonable default
-  let limit = 10 // Default limit
-  const limitParam = searchParams.get("limit")
-  
-  if (limitParam) {
-    limit = parseInt(limitParam, 10)
-  } else if (fromDate && toDate) {
-    // If date range is specified but no limit, calculate a reasonable limit
-    const from = new Date(fromDate)
-    const to = new Date(toDate)
-    const daysDiff = Math.ceil((to.getTime() - from.getTime()) / (1000 * 3600 * 24))
-    // Estimate ~3 events per day (adjust as needed)
-    limit = Math.max(10, daysDiff * 3)
+  try {
+    const { searchParams } = new URL(request.url)
+    
+    // Extract query parameters
+    const limit = searchParams.get('limit') 
+      ? parseInt(searchParams.get('limit') as string) 
+      : undefined
+    
+    const from = searchParams.get('from') || undefined
+    const to = searchParams.get('to') || undefined
+    
+    // Extract event types if provided
+    const types = searchParams.getAll('types')
+    
+    // Get events using the service with all parameters
+    const events = await eventService.getEvents(limit, from, to, types.length > 0 ? types : undefined)
+    
+    return NextResponse.json(events)
+  } catch (error) {
+    console.error("Error fetching events:", error)
+    return NextResponse.json(
+      { error: "Failed to fetch events" },
+      { status: 500 }
+    )
   }
-
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-
-  // In actual implementation, we would call the backend with the limit parameter
-  // const response = await fetch(`${process.env.BACKEND_URL}/api/events?limit=${limit}`)
-  // return response
-
-  // For this mock implementation, sort and limit the events
-  let filteredEvents = [...events]
-
-  // Sort by timestamp (newest first)
-  filteredEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-  
-  // Apply limit
-  filteredEvents = filteredEvents.slice(0, limit)
-
-  return NextResponse.json(filteredEvents)
 }
 

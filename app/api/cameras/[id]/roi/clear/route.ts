@@ -1,22 +1,26 @@
 import { NextResponse } from "next/server"
-import { cameras } from "../../../route"
+import { cameraService } from "@/lib/services"
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const id = params.id
-
-  // Find the camera
-  const cameraIndex = cameras.findIndex((camera) => camera.id === id)
-
-  if (cameraIndex === -1) {
-    return NextResponse.json({ error: "Camera not found" }, { status: 404 })
+  try {
+    const cameraId = params.id
+    
+    // Update the ROI with an empty object to clear it
+    const result = await cameraService.updateROI(cameraId, {
+      x1: 0,
+      y1: 0,
+      x2: 0,
+      y2: 0,
+      entry_direction: 'LTR'
+    })
+    
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error("Error clearing camera ROI:", error)
+    return NextResponse.json(
+      { error: "Failed to clear camera ROI" },
+      { status: 500 }
+    )
   }
-
-  // Create a new camera object without the ROI
-  const { roi, ...cameraWithoutRoi } = cameras[cameraIndex]
-
-  // Update the camera
-  cameras[cameraIndex] = cameraWithoutRoi
-
-  return NextResponse.json(cameras[cameraIndex])
 }
 
