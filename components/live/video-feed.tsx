@@ -17,6 +17,7 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720, isComp
   const [error, setError] = useState<string | null>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const loadAttemptedRef = useRef(false)
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Use the /video_feed/{camera_id} endpoint for streaming
   const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || ''
@@ -31,12 +32,21 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720, isComp
     setError(null)
     loadAttemptedRef.current = false
 
+    // Clear any previous timeout
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current)
+    }
+
     // Simulate loading delay only if we're using the fallback
     if (!baseUrl) {
-      const timer = setTimeout(() => {
+      loadTimeoutRef.current = setTimeout(() => {
         setLoading(false)
       }, 1500)
-      return () => clearTimeout(timer)
+      return () => {
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current)
+        }
+      }
     }
     
     // For MJPEG streams, we need to handle the case where onLoad might not fire
@@ -57,30 +67,49 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720, isComp
       const img = imgRef.current;
       if (img) {
         img.addEventListener('load', handleImageLoad);
+        img.addEventListener('error', handleImageError);
       }
+      
+      // Set a timeout to handle cases where the backend is slow to respond
+      loadTimeoutRef.current = setTimeout(() => {
+        if (loading && !loadAttemptedRef.current) {
+          // If still loading after 5 seconds, fallback to placeholder
+          loadAttemptedRef.current = true;
+          setLoading(false);
+          setError("Video feed timed out. Using placeholder.");
+        }
+      }, 5000);
       
       return () => {
         if (img) {
           img.removeEventListener('load', handleImageLoad);
+          img.removeEventListener('error', handleImageError);
+        }
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current);
         }
       };
     }
-  }, [cameraId, baseUrl])
+  }, [cameraId, baseUrl, loading])
 
   // Handle the MJPEG stream
   const handleImageLoad = () => {
     loadAttemptedRef.current = true;
     setLoading(false);
+    setError(null);
   }
 
   const handleImageError = () => {
     loadAttemptedRef.current = true;
     setLoading(false);
-    setError("Failed to load video feed");
+    setError("Failed to load video feed. Using placeholder.");
   }
 
   // Adjust the aspect ratio class based on whether it's compact or not
   const aspectRatioClass = isCompact ? "aspect-[16/9]" : "aspect-video"
+
+  // Determine which image source to show
+  const useFallback = !baseUrl || error;
 
   return (
     <div className={`relative w-full ${aspectRatioClass} bg-black/20 overflow-hidden rounded-lg`}>
@@ -100,12 +129,12 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720, isComp
 
       {error && (
         <motion.div
-          className="absolute inset-0 flex items-center justify-center bg-black/10 z-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-2 z-20"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
         >
-          <div className="text-center text-destructive">
-            <p className={isCompact ? 'text-xs' : 'text-sm'}>{error}</p>
+          <div className="text-center text-destructive text-xs">
+            <p>{error}</p>
           </div>
         </motion.div>
       )}
@@ -119,17 +148,7 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720, isComp
         transition={{ duration: 0.5 }}
         className="h-full"
       >
-        {baseUrl ? (
-          // Use img tag for MJPEG streams instead of Next.js Image
-          <img
-            ref={imgRef}
-            src={videoUrl}
-            alt={`Camera feed from ${cameraId}`}
-            className="w-full h-full object-cover"
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-          />
-        ) : (
+        {useFallback ? (
           // Fallback to Next.js Image with placeholder
           <Image
             ref={imgRef}
@@ -141,6 +160,16 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720, isComp
             onLoad={handleImageLoad}
             onError={handleImageError}
             priority
+          />
+        ) : (
+          // Use img tag for MJPEG streams instead of Next.js Image
+          <img
+            ref={imgRef}
+            src={videoUrl}
+            alt={`Camera feed from ${cameraId}`}
+            className="w-full h-full object-cover"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
           />
         )}
       </motion.div>
