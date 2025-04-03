@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import axios from "axios"
-import { Filter } from "lucide-react"
+import { Filter, Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import EventsList from "@/components/events/events-list"
 import DateRangePicker from "@/components/events/date-range-picker"
 import EventTypeFilter from "@/components/events/event-type-filter"
 import { LoadingCard } from "@/components/ui/loading-spinner"
 import { AnimatePresence, motion } from "framer-motion"
+import apiClient from "@/lib/api-client"
 
 export default function EventsPage() {
   const searchParams = useSearchParams()
@@ -21,6 +22,8 @@ export default function EventsPage() {
   const [events, setEvents] = useState<any[]>([])
   const [detections, setDetections] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [cameras, setCameras] = useState<any[]>([])
+  const [selectedCamera, setSelectedCamera] = useState<string>("")
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined
     to: Date | undefined
@@ -32,9 +35,63 @@ export default function EventsPage() {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
+    fetchCameras()
+  }, [])
+
+  useEffect(() => {
     fetchEvents()
-    fetchDetections()
-  }, [dateRange])
+    if (selectedCamera) {
+      fetchDetections()
+    }
+  }, [dateRange, selectedCamera])
+
+  const fetchCameras = async () => {
+    try {
+      try {
+        const response = await apiClient.get("/cameras")
+        if (Array.isArray(response.data)) {
+          const activeCameras = response.data.filter(camera => camera.status === 'active')
+          setCameras(activeCameras)
+          if (activeCameras.length > 0 && !selectedCamera) {
+            setSelectedCamera(activeCameras[0].id)
+          }
+          return
+        }
+      } catch (error) {
+        console.error("API error:", error)
+      }
+
+      // Fallback mock data
+      const mockCameras = [
+        {
+          id: "cam-001",
+          name: "Front Door",
+          status: "active",
+        },
+        {
+          id: "cam-003",
+          name: "Garage",
+          status: "active",
+        },
+        {
+          id: "cam-005",
+          name: "Driveway",
+          status: "active",
+        },
+      ]
+      setCameras(mockCameras)
+      if (mockCameras.length > 0 && !selectedCamera) {
+        setSelectedCamera(mockCameras[0].id)
+      }
+    } catch (error) {
+      console.error("Error fetching cameras:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load cameras. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const fetchEvents = async () => {
     try {
@@ -55,7 +112,7 @@ export default function EventsPage() {
       }
 
       try {
-        const response = await axios.get(`/api/events?${queryParams.toString()}`)
+        const response = await apiClient.get(`/events?${queryParams.toString()}`)
         if (Array.isArray(response.data)) {
           setEvents(response.data)
           return
@@ -119,7 +176,12 @@ export default function EventsPage() {
     try {
       setLoading(true)
 
-      // Build query params
+      if (!selectedCamera) {
+        setDetections([])
+        return
+      }
+
+      // Build query params for date filters
       const queryParams = new URLSearchParams()
       if (dateRange.from) {
         queryParams.append("from", dateRange.from.toISOString())
@@ -129,9 +191,20 @@ export default function EventsPage() {
       }
 
       try {
-        const response = await axios.get(`/api/detections/recent?${queryParams.toString()}`)
-        if (Array.isArray(response.data)) {
-          setDetections(response.data)
+        // Use the snapshots API endpoint with apiClient
+        const response = await apiClient.get(`/snapshots/${selectedCamera}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`)
+        if (response.data && response.data.snapshots) {
+          // Map snapshots to the expected format for EventsList
+          const mappedDetections = response.data.snapshots.map((snapshot: any) => ({
+            id: snapshot.id.toString(),
+            timestamp: snapshot.timestamp,
+            camera_id: response.data.camera_id,
+            event_type: snapshot.event_type || "detection",
+            direction: snapshot.direction,
+            snapshot_path: snapshot.url, // Use the url property for the path
+            url: snapshot.url // Store original url for constructing full URL in SnapshotPreview
+          }))
+          setDetections(mappedDetections)
           return
         }
       } catch (error) {
@@ -194,13 +267,20 @@ export default function EventsPage() {
     }
   }
 
-  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
-    setDateRange(range)
+  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined } | { from: Date | undefined; to?: Date | undefined }) => {
+    setDateRange({
+      from: range.from,
+      to: range.to || undefined
+    })
   }
 
   const handleEventTypeChange = (types: string[]) => {
     setEventTypes(types)
     fetchEvents()
+  }
+
+  const handleCameraChange = (cameraId: string) => {
+    setSelectedCamera(cameraId)
   }
 
   const clearFilters = () => {
@@ -217,6 +297,21 @@ export default function EventsPage() {
             <Filter className="h-4 w-4 mr-2" />
             Filters
           </Button>
+          
+          <Select value={selectedCamera} onValueChange={handleCameraChange}>
+            <SelectTrigger className="w-[200px] glass">
+              <Camera className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Select camera" />
+            </SelectTrigger>
+            <SelectContent>
+              {cameras.map((camera) => (
+                <SelectItem key={camera.id} value={camera.id}>
+                  {camera.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
           <DateRangePicker dateRange={dateRange} onDateRangeChange={handleDateRangeChange} />
         </div>
       </div>
@@ -253,7 +348,15 @@ export default function EventsPage() {
         </TabsContent>
 
         <TabsContent value="detections" className="mt-0">
-          {loading ? <LoadingCard height="h-64" /> : <EventsList events={detections} type="detections" />}
+          {loading ? (
+            <LoadingCard height="h-64" />
+          ) : detections.length === 0 && selectedCamera ? (
+            <Card className="glass-card p-6 text-center">
+              <p className="text-muted-foreground">No detection events found for the selected camera.</p>
+            </Card>
+          ) : (
+            <EventsList events={detections} type="detections" />
+          )}
         </TabsContent>
 
         <TabsContent value="system" className="mt-0">

@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input"
 
 const formSchema = z.object({
   id: z.string().min(1, "ID is required"),
-  name: z.string().min(1, "Name is required"),
   source: z.string().min(1, "Source is required"),
+  name: z.string().optional(),
+  width: z.coerce.number().optional(),
+  height: z.coerce.number().optional(),
+  fps: z.coerce.number().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -27,8 +30,11 @@ export default function AddCameraForm({ onAddCamera }: AddCameraFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       id: "",
-      name: "",
       source: "",
+      name: "",
+      width: undefined,
+      height: undefined,
+      fps: undefined,
     },
   })
 
@@ -51,9 +57,9 @@ export default function AddCameraForm({ onAddCamera }: AddCameraFormProps) {
             name="id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Camera ID</FormLabel>
+                <FormLabel>Camera ID*</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter camera ID" {...field} />
+                  <Input placeholder="cam-001" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -67,7 +73,7 @@ export default function AddCameraForm({ onAddCamera }: AddCameraFormProps) {
               <FormItem>
                 <FormLabel>Camera Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter camera name" {...field} />
+                  <Input placeholder="Front Door" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -80,14 +86,58 @@ export default function AddCameraForm({ onAddCamera }: AddCameraFormProps) {
           name="source"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Source URL</FormLabel>
+              <FormLabel>Source URL*</FormLabel>
               <FormControl>
-                <Input placeholder="rtsp://example.com/stream" {...field} />
+                <Input placeholder="rtsp://192.168.1.100:554/stream1" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="width"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Width</FormLabel>
+                <FormControl>
+                  <Input placeholder="640" type="number" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="height"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Height</FormLabel>
+                <FormControl>
+                  <Input placeholder="480" type="number" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="fps"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>FPS</FormLabel>
+                <FormControl>
+                  <Input placeholder="30" type="number" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? "Adding..." : "Add Camera"}

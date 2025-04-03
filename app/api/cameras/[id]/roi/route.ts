@@ -4,7 +4,9 @@ import type { CameraROI } from "@/lib/services/camera-service"
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
-    const id = params.id
+    // Force params to be awaited
+    const resolvedParams = await Promise.resolve(params)
+    const id = resolvedParams.id
     const body = await request.json()
 
     // Transform the ROI format from frontend (if it's using old format)
@@ -17,7 +19,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         y1: body.roi.y,
         x2: body.roi.x + body.roi.width,
         y2: body.roi.y + body.roi.height,
-        entry_direction: body.entry_direction || 'LTR'
+        entry_direction: body.entry_direction || '1,0' // Default: right
       }
     } else {
       // Already in the correct format
@@ -26,7 +28,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         y1: body.y1,
         x2: body.x2,
         y2: body.y2,
-        entry_direction: body.entry_direction || 'LTR'
+        entry_direction: body.entry_direction || '1,0' // Default: right
       }
     }
     
@@ -40,16 +42,29 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: "Invalid ROI data" }, { status: 400 })
     }
 
-    // Validate entry direction
-    if (roiData.entry_direction !== "LTR" && roiData.entry_direction !== "RTL") {
+    // Validate entry direction (must be in "x,y" format or legacy LTR/RTL)
+    if (typeof roiData.entry_direction !== "string") {
       return NextResponse.json({ error: "Invalid entry direction" }, { status: 400 })
+    }
+    
+    // Convert legacy LTR/RTL to vector format if needed
+    if (roiData.entry_direction === "LTR") {
+      roiData.entry_direction = "1,0"; // Right
+    } else if (roiData.entry_direction === "RTL") {
+      roiData.entry_direction = "-1,0"; // Left
+    } else {
+      // Validate vector format (x,y)
+      const vectorPattern = /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/;
+      if (!vectorPattern.test(roiData.entry_direction)) {
+        return NextResponse.json({ error: "Invalid entry direction vector format" }, { status: 400 })
+      }
     }
 
     // Use our service module to update ROI
     const result = await cameraService.updateROI(id, roiData)
     return NextResponse.json(result)
   } catch (error) {
-    console.error(`Error updating ROI for camera ${params.id}:`, error)
+    console.error(`Error updating ROI for camera:`, error)
     return NextResponse.json({ error: "Failed to update ROI" }, { status: 500 })
   }
 }

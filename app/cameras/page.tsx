@@ -7,11 +7,15 @@ import CameraCard from "@/components/cameras/camera-card"
 import AddCameraForm from "@/components/cameras/add-camera-form"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { AnimatePresence, motion } from "framer-motion"
+import { cameraService, Camera as ServiceCamera } from "@/lib/services"
 
 interface Camera {
   id: string
-  name: string
-  source: string
+  source: string | number
+  name?: string
+  width?: number
+  height?: number
+  fps?: number
   active: boolean
   detection_enabled?: boolean
   roi?: {
@@ -21,6 +25,8 @@ interface Camera {
     height: number
   }
   entry_direction?: "LTR" | "RTL"
+  status?: string
+  person_detected?: boolean
 }
 
 export default function CamerasPage() {
@@ -56,6 +62,9 @@ export default function CamerasPage() {
           id: "cam-001",
           name: "Front Door",
           source: "rtsp://192.168.1.100:554/stream1",
+          width: 1920,
+          height: 1080,
+          fps: 30,
           active: true,
           detection_enabled: true,
           roi: {
@@ -64,12 +73,15 @@ export default function CamerasPage() {
             width: 200,
             height: 150,
           },
-          entry_direction: "LTR",
+          entry_direction: "LTR" as "LTR" | "RTL",
         },
         {
           id: "cam-002",
           name: "Backyard",
           source: "rtsp://192.168.1.101:554/stream1",
+          width: 1280,
+          height: 720,
+          fps: 25,
           active: false,
           detection_enabled: false,
         },
@@ -77,6 +89,9 @@ export default function CamerasPage() {
           id: "cam-003",
           name: "Garage",
           source: "rtsp://192.168.1.102:554/stream1",
+          width: 640,
+          height: 480,
+          fps: 15,
           active: true,
           detection_enabled: true,
           roi: {
@@ -85,12 +100,15 @@ export default function CamerasPage() {
             width: 300,
             height: 200,
           },
-          entry_direction: "RTL",
+          entry_direction: "RTL" as "LTR" | "RTL",
         },
         {
           id: "cam-004",
           name: "Side Entrance",
           source: "rtsp://192.168.1.103:554/stream1",
+          width: 1280,
+          height: 720,
+          fps: 30,
           active: true,
           detection_enabled: false,
         },
@@ -98,6 +116,9 @@ export default function CamerasPage() {
           id: "cam-005",
           name: "Driveway",
           source: "rtsp://192.168.1.104:554/stream1",
+          width: 1920,
+          height: 1080,
+          fps: 25,
           active: true,
           detection_enabled: true,
         },
@@ -126,14 +147,16 @@ export default function CamerasPage() {
 
   const handleAddCamera = async (newCamera: Omit<Camera, "active">) => {
     try {
-      const response = await axios.post("/api/cameras", newCamera)
-      setCameras([...cameras, { ...response.data, active: true }])
+      // Use cameraService.addCamera instead of direct axios call
+      const response = await cameraService.addCamera(newCamera)
+      setCameras([...cameras, { ...response, active: true }])
       toast({
         title: "Success",
         description: "Camera added successfully!",
         className: "detection-toast",
       })
     } catch (err) {
+      console.error("Error adding camera:", err)
       toast({
         title: "Error",
         description: "Failed to add camera. Please try again.",
@@ -145,20 +168,25 @@ export default function CamerasPage() {
 
   const handleRemoveCamera = async (cameraId: string) => {
     try {
-      await axios.delete(`/api/cameras/${cameraId}`)
-      setCameras(cameras.filter((camera) => camera.id !== cameraId))
+      // Use cameraService instead of direct axios call
+      await cameraService.deleteCamera(cameraId);
+      
+      // Update UI by removing the camera from state
+      setCameras(cameras.filter((camera) => camera.id !== cameraId));
+      
       toast({
         title: "Success",
         description: "Camera removed successfully!",
         className: "detection-toast",
-      })
+      });
     } catch (err) {
+      console.error("Error removing camera:", err);
       toast({
         title: "Error",
         description: "Failed to remove camera. Please try again.",
         variant: "destructive",
         className: "detection-toast",
-      })
+      });
     }
   }
 

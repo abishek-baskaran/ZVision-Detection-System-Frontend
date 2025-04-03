@@ -14,7 +14,7 @@ export interface CameraROI {
   y1: number
   x2: number
   y2: number
-  entry_direction: 'LTR' | 'RTL'
+  entry_direction: string // Format: "x,y" normalized vector
 }
 
 /**
@@ -34,6 +34,32 @@ export const cameraService = {
     }
     
     const response = await apiClient.get('/cameras')
+    return response.data
+  },
+  
+  /**
+   * Add a new camera
+   */
+  addCamera: async (camera: {
+    id: string,
+    source: string | number,
+    name?: string,
+    width?: number,
+    height?: number,
+    fps?: number
+  }): Promise<Camera> => {
+    // Use mock data if feature flag is enabled
+    if (shouldUseMockData()) {
+      return {
+        id: camera.id,
+        name: camera.name || `Camera ${camera.id}`,
+        source: camera.source,
+        status: 'active',
+        person_detected: false
+      }
+    }
+    
+    const response = await apiClient.post('/cameras', camera)
     return response.data
   },
   
@@ -85,7 +111,7 @@ export const cameraService = {
       return { success: true }
     }
     
-    // Using the updated ROI format from api_discrepencies.md
+    // Send to the backend in the correct format
     const response = await apiClient.post(`/cameras/${cameraId}/roi`, roiData)
     return response.data
   },
@@ -105,6 +131,22 @@ export const cameraService = {
     
     // Using the updated endpoint path from api_discrepencies.md
     const response = await apiClient.get(`/snapshots/${cameraId}`)
+    return response.data
+  },
+  
+  /**
+   * Delete a camera by ID
+   */
+  deleteCamera: async (cameraId: string): Promise<{ status: string, id: string }> => {
+    // Use mock data if feature flag is enabled
+    if (shouldUseMockData()) {
+      return { 
+        status: "Camera removed", 
+        id: cameraId 
+      }
+    }
+    
+    const response = await apiClient.delete(`/cameras/${cameraId}`)
     return response.data
   }
 } 

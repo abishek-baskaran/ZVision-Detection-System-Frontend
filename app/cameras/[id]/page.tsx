@@ -6,17 +6,18 @@ import axios from "axios"
 import { useToast } from "@/components/ui/use-toast"
 import { ArrowLeft, Loader2, Save, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import ROISelector from "@/components/cameras/roi-selector"
+import DirectionCompass from "@/components/cameras/direction-compass"
 import Link from "next/link"
 import { CameraDetectionToggle } from "@/components/cameras/detection-toggle"
+import { cameraService } from "@/lib/services"
 
 interface ROI {
-  x: number
-  y: number
-  width: number
-  height: number
+  x1: number
+  y1: number
+  x2: number
+  y2: number
 }
 
 interface Camera {
@@ -26,7 +27,44 @@ interface Camera {
   active: boolean
   detection_enabled?: boolean
   roi?: ROI
-  entry_direction?: "LTR" | "RTL"
+  entry_direction?: string // Changed from "LTR" | "RTL" to vector format "x,y"
+}
+
+// Helper function to convert legacy ROI format to new format if needed
+const convertLegacyRoi = (roi: any): ROI | undefined => {
+  if (!roi) return undefined;
+  
+  // Check if it's already in the correct format
+  if ('x1' in roi && 'y1' in roi && 'x2' in roi && 'y2' in roi) {
+    return roi as ROI;
+  }
+  
+  // Convert from old format {x, y, width, height} to {x1, y1, x2, y2}
+  if ('x' in roi && 'y' in roi && 'width' in roi && 'height' in roi) {
+    return {
+      x1: roi.x,
+      y1: roi.y,
+      x2: roi.x + roi.width,
+      y2: roi.y + roi.height
+    };
+  }
+  
+  return undefined;
+}
+
+// Helper function to convert legacy direction to vector format
+const convertLegacyDirection = (direction?: string): string => {
+  if (!direction) return "1,0"; // Default: right
+  
+  // Check if it's already in vector format (contains a comma)
+  if (direction.includes(',')) return direction;
+  
+  // Convert from LTR/RTL to vector
+  switch (direction) {
+    case 'LTR': return "1,0";  // right
+    case 'RTL': return "-1,0"; // left
+    default: return "1,0";     // default: right
+  }
 }
 
 export default function CameraDetailsPage() {
@@ -39,7 +77,7 @@ export default function CameraDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [roi, setRoi] = useState<ROI | null>(null)
-  const [entryDirection, setEntryDirection] = useState<"LTR" | "RTL">("LTR")
+  const [directionVector, setDirectionVector] = useState<string>("1,0") // Default: right
   const [saving, setSaving] = useState(false)
 
   // Update the fetchCameraDetails function to handle API failures and use mock data
@@ -57,10 +95,14 @@ export default function CameraDetailsPage() {
 
           // Initialize ROI and entry direction from camera data
           if (response.data.roi) {
-            setRoi(response.data.roi)
+            const convertedRoi = convertLegacyRoi(response.data.roi);
+            if (convertedRoi) {
+              setRoi(convertedRoi);
+            }
           }
           if (response.data.entry_direction) {
-            setEntryDirection(response.data.entry_direction)
+            const convertedDirection = convertLegacyDirection(response.data.entry_direction);
+            setDirectionVector(convertedDirection);
           }
 
           setError(null)
@@ -81,12 +123,12 @@ export default function CameraDetailsPage() {
           active: true,
           detection_enabled: true,
           roi: {
-            x: 50,
-            y: 100,
-            width: 200,
-            height: 150,
+            x1: 50,
+            y1: 100,
+            x2: 250,
+            y2: 250,
           },
-          entry_direction: "LTR",
+          entry_direction: "1,0", // right
         },
         {
           id: "cam-002",
@@ -102,12 +144,12 @@ export default function CameraDetailsPage() {
           active: true,
           detection_enabled: true,
           roi: {
-            x: 100,
-            y: 150,
-            width: 300,
-            height: 200,
+            x1: 100,
+            y1: 150,
+            x2: 400,
+            y2: 350,
           },
-          entry_direction: "RTL",
+          entry_direction: "-1,0", // left
         },
         {
           id: "cam-004",
@@ -134,7 +176,7 @@ export default function CameraDetailsPage() {
           setRoi(mockCamera.roi)
         }
         if (mockCamera.entry_direction) {
-          setEntryDirection(mockCamera.entry_direction)
+          setDirectionVector(mockCamera.entry_direction)
         }
 
         setError(null)
@@ -176,10 +218,13 @@ export default function CameraDetailsPage() {
       setSaving(true)
 
       try {
-        await axios.post(`/api/cameras/${cameraId}/roi`, {
-          roi,
-          entry_direction: entryDirection,
-        })
+        await cameraService.updateROI(cameraId, {
+          x1: roi.x1,
+          y1: roi.y1,
+          x2: roi.x2,
+          y2: roi.y2,
+          entry_direction: directionVector
+        });
       } catch (apiErr) {
         console.error("API error when saving ROI:", apiErr)
         // Continue with local update even if API fails
@@ -196,7 +241,7 @@ export default function CameraDetailsPage() {
         setCamera({
           ...camera,
           roi,
-          entry_direction: entryDirection,
+          entry_direction: directionVector,
         })
       }
     } catch (err) {
@@ -272,6 +317,18 @@ export default function CameraDetailsPage() {
     )
   }
 
+  // Helper function to format ROI display
+  const formatRoi = (roi: ROI) => {
+    return {
+      x1: Math.round(roi.x1),
+      y1: Math.round(roi.y1),
+      x2: Math.round(roi.x2),
+      y2: Math.round(roi.y2),
+      width: Math.round(roi.x2 - roi.x1),
+      height: Math.round(roi.y2 - roi.y1)
+    };
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Link href="/cameras" className="flex items-center text-primary mb-6">
@@ -303,10 +360,13 @@ export default function CameraDetailsPage() {
             <p className="text-sm text-muted-foreground mb-1">Region of Interest:</p>
             {camera.roi ? (
               <div className="font-mono bg-background/50 p-2 rounded mb-4">
-                <p>X: {camera.roi.x}</p>
-                <p>Y: {camera.roi.y}</p>
-                <p>Width: {camera.roi.width}</p>
-                <p>Height: {camera.roi.height}</p>
+                {roi && (
+                  <>
+                    <p>Top-Left: ({formatRoi(roi).x1}, {formatRoi(roi).y1})</p>
+                    <p>Bottom-Right: ({formatRoi(roi).x2}, {formatRoi(roi).y2})</p>
+                    <p>Size: {formatRoi(roi).width} × {formatRoi(roi).height}</p>
+                  </>
+                )}
               </div>
             ) : (
               <p className="italic text-muted-foreground mb-4">No ROI configured</p>
@@ -325,26 +385,25 @@ export default function CameraDetailsPage() {
 
       <div className="glass p-6 rounded-xl mb-8">
         <h2 className="text-xl font-semibold mb-4">Configure Region of Interest</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Draw a rectangle on the live camera feed to select your region of interest.
+          Use the refresh button if you need to reload the video feed.
+        </p>
         <div className="mb-6">
-          <ROISelector initialRoi={camera.roi} onRoiChange={setRoi} cameraId={camera.id} />
+          <ROISelector initialRoi={roi} onRoiChange={setRoi} cameraId={camera.id} />
         </div>
 
         <div className="mb-6">
           <h3 className="text-lg font-medium mb-2">Entry Direction</h3>
-          <RadioGroup
-            value={entryDirection}
-            onValueChange={(value) => setEntryDirection(value as "LTR" | "RTL")}
-            className="flex space-x-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="LTR" id="ltr" />
-              <Label htmlFor="ltr">Left to Right</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="RTL" id="rtl" />
-              <Label htmlFor="rtl">Right to Left</Label>
-            </div>
-          </RadioGroup>
+          <DirectionCompass 
+            initialDirection={directionVector} 
+            onDirectionChange={setDirectionVector} 
+          />
+          <div className="text-xs text-right mt-2">
+            <Link href="/cameras/entry-direction-demo" className="text-primary hover:underline">
+              What is entry direction? See demo →
+            </Link>
+          </div>
         </div>
 
         <div className="flex space-x-4">

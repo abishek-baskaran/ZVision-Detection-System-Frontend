@@ -9,43 +9,81 @@ interface VideoFeedProps {
   cameraId: string
   width?: number
   height?: number
+  isCompact?: boolean
 }
 
-export default function VideoFeed({ cameraId, width = 1280, height = 720 }: VideoFeedProps) {
+export default function VideoFeed({ cameraId, width = 1280, height = 720, isCompact = false }: VideoFeedProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const imgRef = useRef<HTMLImageElement>(null)
+  const loadAttemptedRef = useRef(false)
 
-  // In a real application, this would be the URL to the MJPEG stream
-  // For this demo, we'll use a placeholder image
-  const videoUrl = `/placeholder.svg?height=${height}&width=${width}`
+  // Use the /video_feed/{camera_id} endpoint for streaming
+  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || ''
+  const videoUrl = `${baseUrl}/video_feed/${cameraId}`
+  
+  // Fallback to placeholder if no backend URL is set
+  const fallbackUrl = `/placeholder.svg?height=${height}&width=${width}`
 
   useEffect(() => {
     // Reset states when camera changes
     setLoading(true)
     setError(null)
+    loadAttemptedRef.current = false
 
-    // Simulate loading delay
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 1500)
+    // Simulate loading delay only if we're using the fallback
+    if (!baseUrl) {
+      const timer = setTimeout(() => {
+        setLoading(false)
+      }, 1500)
+      return () => clearTimeout(timer)
+    }
+    
+    // For MJPEG streams, we need to handle the case where onLoad might not fire
+    // This effect ensures we check if the image has loaded after a brief moment
+    if (baseUrl) {
+      const checkImageLoaded = () => {
+        // If image ref exists and has a complete property set to true, the image has loaded
+        if (imgRef.current && imgRef.current.complete && !loadAttemptedRef.current) {
+          loadAttemptedRef.current = true;
+          setLoading(false);
+        }
+      };
+      
+      // Initial check in case the image loads very quickly
+      checkImageLoaded();
+      
+      // Add event listener to check when the image is loaded
+      const img = imgRef.current;
+      if (img) {
+        img.addEventListener('load', handleImageLoad);
+      }
+      
+      return () => {
+        if (img) {
+          img.removeEventListener('load', handleImageLoad);
+        }
+      };
+    }
+  }, [cameraId, baseUrl])
 
-    return () => clearTimeout(timer)
-  }, [cameraId])
-
-  // In a real application, you would handle the MJPEG stream differently
-  // This is a simplified version for demonstration purposes
+  // Handle the MJPEG stream
   const handleImageLoad = () => {
-    setLoading(false)
+    loadAttemptedRef.current = true;
+    setLoading(false);
   }
 
   const handleImageError = () => {
-    setLoading(false)
-    setError("Failed to load video feed")
+    loadAttemptedRef.current = true;
+    setLoading(false);
+    setError("Failed to load video feed");
   }
 
+  // Adjust the aspect ratio class based on whether it's compact or not
+  const aspectRatioClass = isCompact ? "aspect-[16/9]" : "aspect-video"
+
   return (
-    <div className="relative w-full aspect-video bg-black/20 overflow-hidden rounded-lg">
+    <div className={`relative w-full ${aspectRatioClass} bg-black/20 overflow-hidden rounded-lg`}>
       {loading && (
         <motion.div
           className="absolute inset-0 flex items-center justify-center bg-black/10 z-10"
@@ -54,8 +92,8 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720 }: Vide
           exit={{ opacity: 0 }}
         >
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
-            <p className="text-sm">Loading video feed...</p>
+            <Loader2 className={`${isCompact ? 'h-6 w-6' : 'h-8 w-8'} animate-spin mx-auto mb-2 text-primary`} />
+            <p className={`${isCompact ? 'text-xs' : 'text-sm'}`}>Loading video feed...</p>
           </div>
         </motion.div>
       )}
@@ -67,7 +105,7 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720 }: Vide
           animate={{ opacity: 1 }}
         >
           <div className="text-center text-destructive">
-            <p>{error}</p>
+            <p className={isCompact ? 'text-xs' : 'text-sm'}>{error}</p>
           </div>
         </motion.div>
       )}
@@ -79,18 +117,32 @@ export default function VideoFeed({ cameraId, width = 1280, height = 720 }: Vide
           scale: loading ? 0.95 : 1,
         }}
         transition={{ duration: 0.5 }}
+        className="h-full"
       >
-        <Image
-          ref={imgRef}
-          src={videoUrl || "/placeholder.svg"}
-          alt={`Camera feed from ${cameraId}`}
-          width={width}
-          height={height}
-          className="w-full h-full object-cover"
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-          priority
-        />
+        {baseUrl ? (
+          // Use img tag for MJPEG streams instead of Next.js Image
+          <img
+            ref={imgRef}
+            src={videoUrl}
+            alt={`Camera feed from ${cameraId}`}
+            className="w-full h-full object-cover"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+        ) : (
+          // Fallback to Next.js Image with placeholder
+          <Image
+            ref={imgRef}
+            src={fallbackUrl}
+            alt={`Camera feed from ${cameraId}`}
+            width={width}
+            height={height}
+            className="w-full h-full object-cover"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            priority
+          />
+        )}
       </motion.div>
     </div>
   )

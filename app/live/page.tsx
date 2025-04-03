@@ -24,6 +24,7 @@ interface CameraInterface {
   name: string
   source: string
   active: boolean
+  status?: string
   detection_enabled: boolean
 }
 
@@ -51,6 +52,9 @@ export default function LivePage() {
   const [useWebSocket, setUseWebSocket] = useState(false)
   const [wsConnected, setWsConnected] = useState(false)
   const [lastEvent, setLastEvent] = useState<any>(null)
+  const [splitView, setSplitView] = useState(false)
+  const [showSplitViewHint, setShowSplitViewHint] = useState(true);
+  const [showSingleViewHint, setShowSingleViewHint] = useState(true);
 
   const statusPollRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -80,6 +84,28 @@ export default function LivePage() {
     startStatusPolling()
   }, [selectedCamera])
 
+  // Hide hints after a delay
+  useEffect(() => {
+    const splitViewTimer = setTimeout(() => {
+      setShowSplitViewHint(false);
+    }, 5000);
+    
+    const singleViewTimer = setTimeout(() => {
+      setShowSingleViewHint(false);
+    }, 5000);
+    
+    return () => {
+      clearTimeout(splitViewTimer);
+      clearTimeout(singleViewTimer);
+    };
+  }, [splitView]);
+  
+  // Reset hint visibility when view mode changes
+  useEffect(() => {
+    setShowSplitViewHint(true);
+    setShowSingleViewHint(true);
+  }, [splitView]);
+
   const fetchCameras = async () => {
     try {
       setLoading(true)
@@ -87,7 +113,23 @@ export default function LivePage() {
       try {
         const response = await axios.get("/api/cameras")
         if (Array.isArray(response.data)) {
-          setCameras(response.data)
+          // Map the response data to include 'active' status based on 'status' field
+          const camerasWithActiveStatus = response.data.map(camera => ({
+            ...camera,
+            // Set active to true if status is 'active', otherwise false
+            active: camera.status === 'active'
+          }));
+          setCameras(camerasWithActiveStatus)
+          
+          // If URL doesn't specify a camera or the specified camera isn't active,
+          // select the first active camera
+          if (!searchParams.get("camera") || 
+              !camerasWithActiveStatus.some(cam => cam.id === initialCameraId && cam.active)) {
+            const firstActiveCamera = camerasWithActiveStatus.find(cam => cam.active)
+            if (firstActiveCamera) {
+              setSelectedCamera(firstActiveCamera.id)
+            }
+          }
           return
         }
       } catch (error) {
@@ -133,6 +175,16 @@ export default function LivePage() {
         },
       ]
       setCameras(mockCameras)
+      
+      // For mock data, select first active camera if URL parameter is not provided
+      // or the specified camera isn't active
+      if (!searchParams.get("camera") || 
+          !mockCameras.some(cam => cam.id === initialCameraId && cam.active)) {
+        const firstActiveCamera = mockCameras.find(cam => cam.active)
+        if (firstActiveCamera) {
+          setSelectedCamera(firstActiveCamera.id)
+        }
+      }
     } catch (error) {
       console.error("Error fetching cameras:", error)
       toast({
@@ -230,6 +282,23 @@ export default function LivePage() {
 
   const selectedCameraData = cameras.find((cam) => cam.id === selectedCamera)
 
+  // Add handlers for single and double clicks
+  const handleCameraSingleClick = (cameraId: string) => {
+    // Only select the camera, don't change the view mode
+    setSelectedCamera(cameraId);
+  };
+
+  const handleCameraDoubleClick = (cameraId: string) => {
+    // If in split view, switch to single view with the double-clicked camera
+    if (splitView) {
+      setSelectedCamera(cameraId);
+      setSplitView(false);
+    } else {
+      // If in single view, switch to split view
+      setSplitView(true);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
@@ -272,6 +341,92 @@ export default function LivePage() {
                   >
                     <LoadingOverlay text="Loading camera feed..." />
                   </motion.div>
+                ) : splitView ? (
+                  // Split view mode - show all cameras in a grid
+                  <motion.div
+                    key="split-view"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="grid gap-3 p-2 auto-rows-auto"
+                    style={{ 
+                      gridTemplateColumns: `repeat(${
+                        cameras.filter(c => c.active).length <= 1 
+                          ? 1 
+                          : cameras.filter(c => c.active).length <= 4 
+                            ? Math.min(2, cameras.filter(c => c.active).length)
+                            : Math.min(3, cameras.filter(c => c.active).length)
+                      }, minmax(0, 1fr))`,
+                      height: 'auto'
+                    }}
+                  >
+                    {/* Helper tooltip for split view */}
+                    {showSplitViewHint && (
+                      <motion.div 
+                        className="absolute top-4 right-4 glass px-3 py-1 rounded-md text-xs opacity-80 z-20"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <p>Double-click a camera to focus</p>
+                      </motion.div>
+                    )}
+                    
+                    {cameras.filter(camera => camera.active).length === 0 ? (
+                      <div className="col-span-full flex justify-center items-center h-[500px] bg-black/10 rounded-lg">
+                        <div className="text-center">
+                          <Camera className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+                          <h3 className="text-xl font-medium mb-2">No Active Cameras</h3>
+                          <p className="text-muted-foreground">There are no active cameras to display.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      cameras.filter(camera => camera.active).map(camera => {
+                        // Calculate if we should use compact mode based on number of cameras
+                        const activeCameras = cameras.filter(c => c.active).length;
+                        const useCompactMode = activeCameras > 2;
+                        
+                        return (
+                          <div 
+                            key={camera.id} 
+                            className={`relative rounded-lg overflow-hidden transition-all duration-200 
+                              ${camera.id === selectedCamera ? 'ring-2 ring-primary shadow-lg' : 'hover:ring-1 hover:ring-primary/50'}
+                              ${useCompactMode ? 'aspect-video' : 'aspect-video'}
+                              cursor-pointer
+                            `}
+                            onClick={() => handleCameraSingleClick(camera.id)}
+                            onDoubleClick={() => handleCameraDoubleClick(camera.id)}
+                          >
+                            <VideoFeed 
+                              cameraId={camera.id} 
+                              isCompact={useCompactMode}
+                            />
+                            
+                            {/* Camera name overlay */}
+                            <div className="absolute top-2 left-2 glass px-2 py-1 rounded-md text-xs flex items-center">
+                              <Camera className="h-3 w-3 mr-1" />
+                              <span>{camera.name}</span>
+                            </div>
+                            
+                            {/* Detection status indicator */}
+                            <div className="absolute top-2 right-2 glass px-2 py-1 rounded-md text-xs flex items-center">
+                              {camera.detection_enabled ? (
+                                <>
+                                  <Eye className="h-3 w-3 mr-1 text-green-500" />
+                                  <span>Detection On</span>
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOff className="h-3 w-3 mr-1 text-muted-foreground" />
+                                  <span>Detection Off</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </motion.div>
                 ) : !selectedCameraData?.active ? (
                   <motion.div
                     key="inactive"
@@ -292,7 +447,8 @@ export default function LivePage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="relative"
+                    className="relative cursor-pointer w-full aspect-video"
+                    onDoubleClick={() => handleCameraDoubleClick(selectedCamera)}
                   >
                     <VideoFeed cameraId={selectedCamera} />
 
@@ -301,6 +457,18 @@ export default function LivePage() {
                       <DetectionIndicator direction={status.direction} timestamp={status.last_detection_time} />
                     )}
 
+                    {/* Helper tooltip for single view */}
+                    {showSingleViewHint && (
+                      <motion.div 
+                        className="absolute bottom-4 right-4 glass px-3 py-1 rounded-md text-xs opacity-80 z-20"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <p>Double-click to see all cameras</p>
+                      </motion.div>
+                    )}
+                    
                     {/* Camera info overlay */}
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
@@ -368,9 +536,9 @@ export default function LivePage() {
                         <Label>Split View</Label>
                         <p className="text-xs text-muted-foreground">Show multiple cameras at once</p>
                       </div>
-                      <Button variant="outline" size="sm" className="glass hover-lift">
+                      <Button variant="outline" size="sm" className={`glass hover-lift ${splitView ? 'bg-primary/10' : ''}`} onClick={() => setSplitView(!splitView)}>
                         <SplitSquareVertical className="h-4 w-4 mr-2" />
-                        Enable
+                        {splitView ? "Single View" : "Multi-Camera"}
                       </Button>
                     </div>
 

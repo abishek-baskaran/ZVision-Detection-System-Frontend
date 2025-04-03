@@ -22,16 +22,20 @@ import { CameraDetectionToggle } from "@/components/detection-toggle"
 interface CameraProps {
   camera: {
     id: string
-    name: string
-    source: string
+    name?: string
+    source: string | number
     active: boolean
     detection_enabled?: boolean
+    width?: number
+    height?: number
+    fps?: number
   }
   onRemove: (id: string) => void
 }
 
 export default function CameraCard({ camera, onRemove }: CameraProps) {
   const [isActive, setIsActive] = useState(camera.active)
+  const displayName = camera.name || `Camera ${camera.id}`
 
   const handleStatusChange = (checked: boolean) => {
     setIsActive(checked)
@@ -53,7 +57,7 @@ export default function CameraCard({ camera, onRemove }: CameraProps) {
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center">
             <Camera className={cn("h-5 w-5 mr-2", isActive ? "text-green-500" : "text-red-500")} />
-            <h3 className="font-semibold text-lg">{camera.name}</h3>
+            <h3 className="font-semibold text-lg">{displayName}</h3>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-xs text-muted-foreground">{isActive ? "Active" : "Inactive"}</span>
@@ -92,7 +96,7 @@ export default function CameraCard({ camera, onRemove }: CameraProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Remove Camera</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to remove "{camera.name}"? This action cannot be undone.
+                    Are you sure you want to remove "{displayName}"? This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

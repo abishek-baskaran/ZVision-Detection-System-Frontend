@@ -3,7 +3,9 @@ import { cameraService } from "@/lib/services"
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
-    const cameraId = params.id
+    // Force params to be awaited
+    const resolvedParams = await Promise.resolve(params)
+    const cameraId = resolvedParams.id
     
     // Update the ROI with an empty object to clear it
     const result = await cameraService.updateROI(cameraId, {
@@ -11,7 +13,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       y1: 0,
       x2: 0,
       y2: 0,
-      entry_direction: 'LTR'
+      entry_direction: '1,0' // Default right direction
     })
     
     return NextResponse.json(result)

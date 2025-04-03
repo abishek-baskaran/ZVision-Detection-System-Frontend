@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Expand, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,10 +13,23 @@ interface SnapshotPreviewProps {
 
 export default function SnapshotPreview({ path, expanded = false }: SnapshotPreviewProps) {
   const [isOpen, setIsOpen] = useState(false)
-
-  // In a real app, we would construct the full URL to the snapshot
-  // For now, we'll use a placeholder image
-  const imageUrl = `/placeholder.svg?height=300&width=400`
+  const [imageUrl, setImageUrl] = useState("/placeholder.svg")
+  
+  useEffect(() => {
+    // Get backend URL from environment variable with fallback
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'
+    
+    // Construct proper URL based on path format
+    if (path) {
+      if (path.startsWith('/api/')) {
+        setImageUrl(`${backendUrl}${path}`)
+      } else {
+        setImageUrl(path)
+      }
+    } else {
+      setImageUrl("/placeholder.svg")
+    }
+  }, [path])
 
   const thumbnailSize = expanded ? 150 : 80
 
@@ -29,7 +42,7 @@ export default function SnapshotPreview({ path, expanded = false }: SnapshotPrev
         )}
       >
         <Image
-          src={imageUrl || "/placeholder.svg"}
+          src={imageUrl}
           alt="Event snapshot"
           width={thumbnailSize}
           height={thumbnailSize}
@@ -45,7 +58,7 @@ export default function SnapshotPreview({ path, expanded = false }: SnapshotPrev
             <DialogContent className="max-w-3xl p-0 overflow-hidden">
               <div className="relative">
                 <Image
-                  src={imageUrl || "/placeholder.svg"}
+                  src={imageUrl}
                   alt="Event snapshot"
                   width={800}
                   height={600}
