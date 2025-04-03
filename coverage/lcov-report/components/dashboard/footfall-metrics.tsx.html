@@ -285,7 +285,7 @@ export default function FootfallMetrics({ timeRange }: { timeRange: string }) {
       try {
         // Try to fetch from API
         try {
-          const response = await axios.get(`/api/metrics?timeRange=${timeRange}`)
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics?timeRange=${timeRange}`)
           if (response.data &amp;&amp; typeof response.data === "object") {
             setData(response.data)
             return

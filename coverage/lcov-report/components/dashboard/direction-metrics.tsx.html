@@ -294,7 +294,7 @@ export default function DirectionMetrics({ timeRange }: { timeRange: string }) {
       try {
         // Try to fetch from API
         try {
-          const response = await axios.get(`/api/metrics?timeRange=${timeRange}`)
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics?timeRange=${timeRange}`)
           <span class="missing-if-branch" title="if path not taken" >I</span>if (response.data &amp;&amp; typeof response.data === "object" &amp;&amp; response.data.directions) {
 <span class="cstat-no" title="statement not covered" >            setData(response.data.directions)</span>
 <span class="cstat-no" title="statement not covered" >            return</span>

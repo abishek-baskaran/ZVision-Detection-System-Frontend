@@ -98,7 +98,7 @@ const cameraId = "cam-001"
 const camera = await cameraService.getCamera(cameraId)
 
 // Direct API call
-const response = await axios.get(`/api/cameras/${cameraId}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cameras/${cameraId}`)
 const camera = response.data
 ```
 
@@ -448,7 +448,7 @@ const timeRange = "24h"
 const metrics = await metricsService.getMetrics(timeRange)
 
 // Direct API call
-const response = await axios.get(`/api/metrics?timeRange=${timeRange}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics?timeRange=${timeRange}`)
 const metrics = response.data
 ```
 
@@ -487,7 +487,7 @@ const timeRange = "7d"
 const dailyMetrics = await metricsService.getDaily(timeRange)
 
 // Direct API call
-const response = await axios.get(`/api/metrics/daily?timeRange=${timeRange}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics/daily?timeRange=${timeRange}`)
 const dailyMetrics = response.data
 ```
 
@@ -528,7 +528,7 @@ const timeRange = "7d"
 const summary = await metricsService.getSummary(timeRange)
 
 // Direct API call
-const response = await axios.get(`/api/metrics/summary?timeRange=${timeRange}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics/summary?timeRange=${timeRange}`)
 const summary = response.data
 ```
 
@@ -575,7 +575,7 @@ const timeRange = "7d"
 const comparison = await analyticsService.getCompare(timeRange)
 
 // Direct API call
-const response = await axios.get(`/api/analytics/compare?timeRange=${timeRange}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/analytics/compare?timeRange=${timeRange}`)
 const comparison = response.data
 ```
 
@@ -636,7 +636,7 @@ if (filters.to) queryParams.append("to", filters.to.toISOString())
 filters.types.forEach(type => queryParams.append("types", type))
 queryParams.append("limit", filters.limit.toString())
 
-const response = await axios.get(`/api/events?${queryParams.toString()}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/events?${queryParams.toString()}`)
 const events = response.data
 ```
 
@@ -697,7 +697,7 @@ if (filters.to) queryParams.append("to", filters.to.toISOString())
 if (filters.camera_id) queryParams.append("camera_id", filters.camera_id)
 queryParams.append("limit", filters.limit.toString())
 
-const response = await axios.get(`/api/detections/recent?${queryParams.toString()}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/detections/recent?${queryParams.toString()}`)
 const detections = response.data
 ```
 
@@ -748,7 +748,7 @@ const cameraId = "cam-001"
 const cameraStatus = await detectionService.getStatus(cameraId)
 
 // Direct API call
-const response = await axios.get(`/api/status?camera_id=${cameraId}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/status?camera_id=${cameraId}`)
 const status = response.data
 ```
 
@@ -787,7 +787,7 @@ const filename = "snapshot.jpg"
 const snapshot = await snapshotService.getSnapshot(cameraId, filename)
 
 // Direct API call
-const response = await axios.get(`/api/snapshot/${cameraId}/${filename}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/snapshot/${cameraId}/${filename}`)
 const snapshot = response.data
 ```
 
@@ -822,6 +822,6 @@ const cameraId = "cam-001"
 const latestSnapshot = await snapshotService.getLatestSnapshot(cameraId)
 
 // Direct API call
-const response = await axios.get(`/api/snapshot/${cameraId}`)
+const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/snapshot/${cameraId}`)
 const latestSnapshot = response.data
 ``` 

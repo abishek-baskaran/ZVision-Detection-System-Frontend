@@ -25,7 +25,7 @@ export default function DailyMetrics({ timeRange, cameraId }: { timeRange: strin
       
       try {
         const cameraParam = cameraId ? `&cam_id=${cameraId}` : ''
-        const response = await axios.get(`/api/metrics/daily?timeRange=${timeRange}${cameraParam}`)
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics/daily?timeRange=${timeRange}${cameraParam}`)
         if (response.data && Array.isArray(response.data)) {
           setData(response.data)
         } else {

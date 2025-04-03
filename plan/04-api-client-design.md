@@ -189,7 +189,7 @@ useEffect(() => {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const response = await axios.get(`/api/metrics?timeRange=${timeRange}`)
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics?timeRange=${timeRange}`)
       if (response.data && response.data.hourlyData && Array.isArray(response.data.hourlyData)) {
         setData(response.data.hourlyData)
       } else {

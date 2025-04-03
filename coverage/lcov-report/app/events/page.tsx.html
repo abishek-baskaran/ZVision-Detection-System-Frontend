@@ -652,7 +652,7 @@ export default function EventsPage() {
       }
 &nbsp;
       try {
-        const response = await axios.get(`/api/events?${queryParams.toString()}`)
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/events?${queryParams.toString()}`)
         if (Array.isArray(response.data)) {
           setEvents(response.data)
           return
@@ -726,7 +726,7 @@ export default function EventsPage() {
       }
 &nbsp;
       try {
-        const response = await axios.get(`/api/detections/recent?${queryParams.toString()}`)
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/detections/recent?${queryParams.toString()}`)
         if (Array.isArray(response.data)) {
           setDetections(response.data)
           return

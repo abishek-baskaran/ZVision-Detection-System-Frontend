@@ -35,7 +35,7 @@ export default function CameraComparison({ timeRange }: { timeRange: string }) {
       try {
         // Try to fetch from API
         try {
-          const response = await axios.get(`/api/analytics/compare?timeRange=${timeRange}`)
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/analytics/compare?timeRange=${timeRange}`)
           if (response.data && 
               response.data.cameras && 
               Array.isArray(response.data.cameras) &&

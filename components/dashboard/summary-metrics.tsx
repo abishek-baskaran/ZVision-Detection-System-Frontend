@@ -30,7 +30,7 @@ export default function SummaryMetrics({ timeRange, cameraId }: { timeRange: str
         try {
           // Add cameraId to the API request if available
           const cameraParam = cameraId ? `&cam_id=${cameraId}` : ''
-          const response = await axios.get(`/api/metrics/summary?timeRange=${timeRange}${cameraParam}`)
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics/summary?timeRange=${timeRange}${cameraParam}`)
           if (response.data && 
               typeof response.data === "object" && 
               typeof response.data.totalDetections === "number") {

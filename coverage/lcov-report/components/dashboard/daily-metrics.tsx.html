@@ -298,7 +298,7 @@ export default function DailyMetrics({ timeRange }: { timeRange: string }) {
       try {
         // Try to fetch from API
         try {
-          const response = await axios.get(`/api/metrics/daily?timeRange=${timeRange}`)
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics/daily?timeRange=${timeRange}`)
           if (response.data &amp;&amp; Array.isArray(response.data)) {
             setData(response.data)
             return

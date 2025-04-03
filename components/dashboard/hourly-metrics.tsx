@@ -27,7 +27,7 @@ export default function HourlyMetrics({ timeRange, cameraId }: { timeRange: stri
       try {
         // Add cameraId to the API request if available
         const cameraParam = cameraId ? `&cam_id=${cameraId}` : ''
-        const response = await axios.get(`/api/metrics?timeRange=${timeRange}${cameraParam}`)
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/metrics?timeRange=${timeRange}${cameraParam}`)
         if (response.data && response.data.hourlyData && Array.isArray(response.data.hourlyData)) {
           setData(response.data.hourlyData)
         } else {

@@ -87,7 +87,7 @@ export default function CameraDetailsPage() {
 
       // Try to fetch from API
       try {
-        const response = await axios.get(`/api/cameras/${cameraId}`)
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/cameras/${cameraId}`)
 
         // Check if response is valid JSON
         if (response.data && typeof response.data === "object" && !response.data.html) {

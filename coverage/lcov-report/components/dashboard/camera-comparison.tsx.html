@@ -363,7 +363,7 @@ export default function CameraComparison({ timeRange }: { timeRange: string }) {
       try {
         // Try to fetch from API
         try {
-          const response = await axios.get(`/api/analytics/compare?timeRange=${timeRange}`)
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/analytics/compare?timeRange=${timeRange}`)
           <span class="missing-if-branch" title="if path not taken" >I</span>if (response.data &amp;&amp; response.data.cameras &amp;&amp; <span class="branch-2 cbranch-no" title="branch not covered" >Array.isArray(response.data.cameras)) {</span>
 <span class="cstat-no" title="statement not covered" >            setData(response.data.cameras)</span>
 <span class="cstat-no" title="statement not covered" >            return</span>

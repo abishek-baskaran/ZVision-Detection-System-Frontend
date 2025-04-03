@@ -206,7 +206,7 @@ export default function LivePage() {
   const fetchStatus = async () => {
     try {
       try {
-        const response = await axios.get(`/api/status?camera_id=${selectedCamera}`)
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/status?camera_id=${selectedCamera}`)
         if (response.data && typeof response.data === "object") {
           setStatus(response.data)
           return
